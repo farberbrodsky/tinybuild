@@ -1,11 +1,14 @@
+CC = cc
+CCFLAGS = -g
+
 default: main.o envparse.o
-	cc main.o envparse.o -o tinybuild
+	$(CC) $(CCFLAGS) main.o envparse.o -o tinybuild
 
 envparse.o: envparse.c envparse.h
-	cc -c envparse.c
+	$(CC) $(CCFLAGS) -c envparse.c
 
-main.o: main.c envparse.h
-	cc -c main.c
+main.o: main.c envparse.h util.h
+	$(CC) $(CCFLAGS) -c main.c
 
 clean:
 	rm -f tinybuild *.o
