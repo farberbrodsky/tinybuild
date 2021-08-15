@@ -72,6 +72,7 @@ int main(int argc, char *argv[], char *envp[]) {
     */
 
     free(my_path);
+    free(base_image_path);
     free(tinybuild_private_dir);
     return 0;
 }
