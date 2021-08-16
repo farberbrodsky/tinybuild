@@ -1,4 +1,5 @@
 #include "util.h"
+#include <sched.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -6,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 #include "envparse.h"
 #include "namespaces.h"
 
@@ -53,8 +55,7 @@ int main(int argc, char *argv[], char *envp[]) {
     char *base_image_path = malloc(tinybuild_private_dir_len + strlen(getenv("FROM")) + 1);
     memcpy(base_image_path, tinybuild_private_dir, tinybuild_private_dir_len);
     memcpy(base_image_path + tinybuild_private_dir_len, getenv("FROM"), strlen(getenv("FROM")));
-    struct stat base_image_stat;
-    if (stat(base_image_path, &base_image_stat) != 0 || !S_ISDIR(base_image_stat.st_mode)) {
+    if (!dir_exists(base_image_path)) {
         fprintf(stderr, "Image does not exist at %s\n", base_image_path);
         return 1;
     }
@@ -74,6 +75,18 @@ int main(int argc, char *argv[], char *envp[]) {
     if (enter_user_namespace() == 0) {
         printf("my uid is %d\n", getuid());
         printf("my gid is %d\n", getgid());
+    } else {
+        return 1;
+    }
+    if (enter_file_namespace(base_image_path, "/home/misha/code/tinybuild/.tinybuild/mount") == 0) {
+        printf("Yes!\n");
+        FILE *hi = fopen("/hi", "r");
+        if (hi == NULL) {
+            perror("noooooo\n");
+            return 1;
+        }
+        char buf[1024];
+        write(1, buf, fread(buf, 1, 1024, hi));
     } else {
         return 1;
     }

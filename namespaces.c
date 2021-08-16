@@ -1,14 +1,15 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include "namespaces.h"
 #include "util.h"
+#include <errno.h>
 #include <sched.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/mount.h>
+#include <sys/syscall.h>
 
 static char *get_name_of_uid(FILE *file, uid_t uid) {
     char *line = NULL;
@@ -156,5 +157,26 @@ int enter_user_namespace() {
             return 1;
         }
     }
+    return 0;
+}
+
+int enter_file_namespace(char *mountsrc, char *mountdst) {
+    if (mkdir(mountdst, 0700) != 0) {
+        switch (errno) {
+            case 0:
+                break;
+            case EEXIST:
+                // remove existing
+                if (rmdir(mountdst) != 0 && umount(mountdst) != 0 && rmdir(mountdst) != 0) return 1;
+                return enter_file_namespace(mountsrc, mountdst);  // try again now that it's removed
+            default:
+                return 2;
+        }
+    }
+    if (unshare(CLONE_NEWNS) != 0) return 3;
+    if (mount(mountsrc, mountdst, NULL, MS_BIND, NULL) != 0) return 4;
+    chdir(mountdst);
+    if (syscall(SYS_pivot_root, ".", ".") != 0) return 5;
+    if (umount2(".", MNT_DETACH) != 0) return 6;
     return 0;
 }
