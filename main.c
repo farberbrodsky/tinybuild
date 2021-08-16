@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "envparse.h"
+#include "namespaces.h"
 
 int main(int argc, char *argv[], char *envp[]) {
     // find my path
@@ -70,6 +71,12 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     free(install);
     */
+    if (enter_user_namespace() == 0) {
+        printf("my uid is %d\n", getuid());
+        printf("my gid is %d\n", getgid());
+    } else {
+        return 1;
+    }
 
     free(my_path);
     free(base_image_path);
