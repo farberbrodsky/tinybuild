@@ -180,3 +180,22 @@ int enter_file_namespace(char *mountsrc, char *mountdst) {
     if (umount2(".", MNT_DETACH) != 0) return 6;
     return 0;
 }
+
+int enter_proc_namespace() {
+    if (unshare(CLONE_NEWPID) != 0) return 1;
+    pid_t p = fork();
+    if (p == 0) {
+        sleep(1);
+        printf("child pid is %d\n", getpid());
+        sleep(1);
+        if (mount("proc", "/proc", "proc", 0, NULL) != 0) {
+            perror("noooo why dis no work");
+            return 2;
+        }
+    } else {
+        waitpid(p, NULL, 0);
+        exit(1);
+        return 1;
+    }
+    return 0;
+}

@@ -1,8 +1,8 @@
 CC = cc
 CCFLAGS = -Wall
 
-default: main.o envparse.o namespaces.o util.o
-	$(CC) $(CCFLAGS) main.o envparse.o namespaces.o util.o -o tinybuild
+default: main.o envparse.o namespaces.o util.o md5.o
+	$(CC) $(CCFLAGS) main.o envparse.o namespaces.o util.o md5.o -o tinybuild
 
 envparse.o: envparse.c envparse.h
 	$(CC) $(CCFLAGS) -c envparse.c
@@ -15,6 +15,9 @@ namespaces.o: namespaces.c namespaces.h
 
 util.o: util.c util.h
 	$(CC) $(CCFLAGS) -c util.c
+
+md5.o: md5/md5.c
+	$(CC) $(CCFLAGS) -c md5/md5.c
 
 clean:
 	rm -f tinybuild *.o
