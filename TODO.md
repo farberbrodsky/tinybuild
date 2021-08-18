@@ -1,0 +1,2 @@
+- [ ] Locking - if someone accidentaly runs multiple instances, and one of them is building an image, the other one waits for it to be built
+- [ ] Cleanup - when an image is loaded and there's a new hash, remove all dependent images
