@@ -121,6 +121,7 @@ static int default_main(char *tinybuild_private_dir, size_t tinybuild_private_di
             memcpy(real_dst + expected_container_path_len, dst, dst_len + 1);
             printf("Copying %s to %s\n", copy_cmd, real_dst);
             copy_recursive(copy_cmd, real_dst);
+            free(real_dst);
             *colon = ':';
             ++imgcopy_p;
         }
@@ -160,7 +161,8 @@ static int default_main(char *tinybuild_private_dir, size_t tinybuild_private_di
     free(install);
 
     // create a temporary image, with the name image_xxxxx like mount_xxxxx
-    char *temp_image_path = malloc(mount_dir_len + 1);
+    const size_t temp_image_path_len = mount_dir_len;
+    char *temp_image_path = malloc(temp_image_path_len + 1);
     memcpy(temp_image_path, mount_dir, mount_dir_len + 1);
     memcpy(temp_image_path + tinybuild_private_dir_len, "image_", strlen("image_"));
     if (copy_recursive(expected_container_path, temp_image_path) != 0) {
@@ -168,7 +170,7 @@ static int default_main(char *tinybuild_private_dir, size_t tinybuild_private_di
         return 1;
     }
 
-    // like IMGCOPY but for stuff that changes
+    // like IMGCOPY but for stuff that changes every run
     char **copy = get_vars_with_prefix(envp, "COPY");
     char **copy_p = copy;
 
@@ -185,11 +187,12 @@ static int default_main(char *tinybuild_private_dir, size_t tinybuild_private_di
         char *dst = &colon[1];
         size_t dst_len = strlen(dst);
         // copy_cmd is now the source, dst is the destination
-        char *real_dst = malloc(mount_dir_len + dst_len + 1);
-        memcpy(real_dst, temp_image_path, mount_dir_len);
-        memcpy(real_dst + mount_dir_len, dst, dst_len + 1);
+        char *real_dst = malloc(temp_image_path_len + dst_len + 1);
+        memcpy(real_dst, temp_image_path, temp_image_path_len);
+        memcpy(real_dst + temp_image_path_len, dst, dst_len + 1);
         printf("Copying %s to %s\n", copy_cmd, real_dst);
         copy_recursive(copy_cmd, real_dst);  // TODO check for a ..
+        free(real_dst);
         *colon = ':';
         ++copy_p;
     }
@@ -213,6 +216,36 @@ static int default_main(char *tinybuild_private_dir, size_t tinybuild_private_di
     do {
         waitpid(p, &wstatus, 0);
     } while (!WIFEXITED(wstatus));
+
+    // copy resulting artifacts
+    char **postcopy = get_vars_with_prefix(envp, "POSTCOPY");
+    char **postcopy_p = postcopy;
+
+    while (*postcopy_p != NULL) {
+        // split the copy commands by the colon
+        char *copy_cmd = *postcopy_p;
+        char *colon = strchr(copy_cmd, ':');
+        // take whatever's after the colon
+        if (colon == NULL || colon[1] == '\0') {
+            fprintf(stderr, "POSTCOPY commands are in the following format: container_src:host_dst\nAnd p.s., if you have a colon in the filename, you're kinda screwed, just mv it with installation commands\n");
+            rmdir(mount_dir);
+            remove_recursive(temp_image_path);
+            return 1;
+        }
+        *colon = '\0';
+        char *real_src = malloc(temp_image_path_len + strlen(copy_cmd) + 1);
+        memcpy(real_src, temp_image_path, temp_image_path_len + 1);
+        strcat(real_src, copy_cmd);
+        char *dst = &colon[1];
+        // real_src is now the source, dst is the destination
+        printf("Copying %s to %s\n", real_src, dst);
+        copy_recursive(real_src, dst);  // TODO check for a ..
+        free(real_src);
+        *colon = ':';
+        ++postcopy_p;
+    }
+
+    free(postcopy);
 
     rmdir(mount_dir);
     free(mount_dir);

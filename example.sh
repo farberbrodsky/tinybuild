@@ -10,5 +10,5 @@ INSTALL1="apt-get install -y gcc make" \
 COPY0="src:/build/src" \
 COPY1="Makefile:/build/Makefile" \
 EXEC="mkdir /build/build/ && cd /build/ && make" \
-POSTCOPY="/build/build/tinybuild:./build/tinybuild_build" \
+POSTCOPY0="/build/build/tinybuild:./build/tinybuild_build" \
 PATH=$P build/tinybuild

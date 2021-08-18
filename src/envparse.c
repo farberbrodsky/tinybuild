@@ -24,6 +24,7 @@ char **get_vars_with_prefix(char *envp[], char *prefix) {
             result = realloc(result, sizeof(char *) * (++result_len + 1));
             memmove(&result[i + 1], &result[i], (result_len - i) * sizeof(char *));
             result[i] = *envp;
+            result[result_len] = NULL;
         } else {
             *seperator = '=';
         }
