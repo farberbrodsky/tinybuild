@@ -1,4 +1,4 @@
-a# tinybuild
+# tinybuild
 Tiny sudoless containers for easy reproducible builds
 
 ## Usage
