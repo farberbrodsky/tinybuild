@@ -1,23 +1,23 @@
 CC = cc
 CCFLAGS = -Wall
 
-default: main.o envparse.o namespaces.o util.o md5.o
-	$(CC) $(CCFLAGS) main.o envparse.o namespaces.o util.o md5.o -o tinybuild
+default: build/main.o build/envparse.o build/namespaces.o build/util.o build/md5.o
+	$(CC) $(CCFLAGS) build/main.o build/envparse.o build/namespaces.o build/util.o build/md5.o -o build/tinybuild
 
-envparse.o: envparse.c envparse.h
-	$(CC) $(CCFLAGS) -c envparse.c
+build/envparse.o: src/envparse.c src/envparse.h
+	$(CC) $(CCFLAGS) -c src/envparse.c -o build/envparse.o
 
-main.o: main.c envparse.h namespaces.h util.h
-	$(CC) $(CCFLAGS) -c main.c
+build/main.o: src/main.c src/envparse.h src/namespaces.h src/util.h
+	$(CC) $(CCFLAGS) -c src/main.c -o build/main.o
 
-namespaces.o: namespaces.c namespaces.h
-	$(CC) $(CCFLAGS) -c namespaces.c
+build/namespaces.o: src/namespaces.c src/namespaces.h
+	$(CC) $(CCFLAGS) -c src/namespaces.c -o build/namespaces.o
 
-util.o: util.c util.h
-	$(CC) $(CCFLAGS) -c util.c
+build/util.o: src/util.c src/util.h
+	$(CC) $(CCFLAGS) -c src/util.c -o build/util.o
 
-md5.o: md5/md5.c
-	$(CC) $(CCFLAGS) -c md5/md5.c
+build/md5.o: src/md5/md5.c
+	$(CC) $(CCFLAGS) -c src/md5/md5.c -o build/md5.o
 
 clean:
-	rm -f tinybuild *.o
+	rm -f build/tinybuild build/*.o
