@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
+#include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -294,35 +295,69 @@ static int untar_main(char *tinybuild_private_dir, size_t tinybuild_private_dir_
         execv("/usr/bin/tar", tar_argv);
         fprintf(stderr, "failed, tar is not in /usr/bin/tar or not executable\n");
         exit(1);
-    } else {
-        // calculate md5 hash, then wait
-        FILE *f = fopen(tar_name, "r");
-        if (f == NULL) {
-            fprintf(stderr, "%s does not exist or could not be opened\n", tar_name);
-            return 2;
-        }
-        char md5_buf[33];
-        md5_file(f, md5_buf);
-
-        int wstatus = 0;
-        do {
-            waitpid(p, &wstatus, 0);
-        } while (!WIFEXITED(wstatus));
-        if (WEXITSTATUS(wstatus) != 0) {
-            return WEXITSTATUS(wstatus);
-        }
-
-        puts("Calculating tar md5...\n");
-
-        // write the md5 to .tinybuild/md5-{imagename}
-        char *md5_f_path = malloc(tinybuild_private_dir_len + strlen("md5-") + image_name_len + 1);
-        memcpy(md5_f_path, tinybuild_private_dir, tinybuild_private_dir_len);
-        memcpy(md5_f_path + tinybuild_private_dir_len, "md5-", strlen("md5-"));
-        memcpy(md5_f_path + tinybuild_private_dir_len + strlen("md5-"), image_name, image_name_len + 1);
-        FILE *md5_f = fopen(md5_f_path, "w");
-        fwrite(md5_buf, 1, 32, md5_f);
-        fclose(md5_f);
     }
+    // calculate md5 hash, then wait
+    FILE *f = fopen(tar_name, "r");
+    if (f == NULL) {
+        fprintf(stderr, "%s does not exist or could not be opened\n", tar_name);
+        return 2;
+    }
+    char md5_buf[33];
+    md5_file(f, md5_buf);
+
+    int wstatus = 0;
+    do {
+        waitpid(p, &wstatus, 0);
+    } while (!WIFEXITED(wstatus));
+    if (WEXITSTATUS(wstatus) != 0) {
+        return WEXITSTATUS(wstatus);
+    }
+
+    char *md5_f_path = malloc(tinybuild_private_dir_len + strlen("md5-") + image_name_len + 1);
+    memcpy(md5_f_path, tinybuild_private_dir, tinybuild_private_dir_len);
+    memcpy(md5_f_path + tinybuild_private_dir_len, "md5-", strlen("md5-"));
+    memcpy(md5_f_path + tinybuild_private_dir_len + strlen("md5-"), image_name, image_name_len + 1);
+    // check if an md5 exists, and read it
+    FILE *md5_f = fopen(md5_f_path, "r+");
+    if (md5_f == NULL) {
+        // write the first md5 to .tinybuild/md5-{imagename}
+        md5_f = fopen(md5_f_path, "w");
+        fwrite(md5_buf, 1, 32, md5_f);
+    } else {
+        // check if the new md5 is different
+        char existing_md5[32] = {0};
+        fread(existing_md5, 1, 32, md5_f);
+        if (memcmp(md5_buf, existing_md5, 32) != 0) {
+            // remove anything starting with image_name-
+            size_t image_name_dash_len = image_name_len + 1;
+            char *image_name_dash = malloc(image_name_len + 2);
+            memcpy(image_name_dash, image_name, image_name_len);
+            image_name_dash[image_name_len] = '-';
+            image_name_dash[image_name_len + 1] = '\0';
+            
+            // new is different, delete dependent images
+            fwrite(md5_buf, 32, 1, md5_f);
+            DIR *dr = opendir(tinybuild_private_dir);
+            struct dirent *de;
+            while ((de = readdir(dr)) != NULL) {
+                // de->d_name is the dir name
+                if (strncmp(image_name_dash, de->d_name, image_name_dash_len) == 0) {
+                    printf("REMOVE %s\n", de->d_name);
+                    char *full_path = malloc(tinybuild_private_dir_len + strlen(de->d_name) + 1);
+                    memcpy(full_path, tinybuild_private_dir, tinybuild_private_dir_len);
+                    memcpy(full_path + tinybuild_private_dir_len, de->d_name, strlen(de->d_name) + 1);
+                    remove_recursive(full_path);
+                    free(full_path);
+                }
+            }
+            free(image_name_dash);
+        } else {
+            // same hash, nothing to do
+        }
+    }
+    fclose(md5_f);
+
+    free(md5_f_path);
     free(image_dir);
     puts("Done.\n");
     return 0;
